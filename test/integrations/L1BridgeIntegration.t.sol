@@ -6,7 +6,7 @@ import {L1Bridge} from "../../src/L1Bridge.sol";
 
 contract BridgeIntegrationTest is L1BridgeTest {
     uint256 public constant MAX_TX_LIMIT = 5 ether; // maxBridgeLimit из контракта
-    
+
     /// @notice Test complete bridge flow with multiple users over multiple days
     function test_Integration_CompleteFlow() public {
         // Day 1: Multiple users bridge (все суммы ≤ 5 ETH)

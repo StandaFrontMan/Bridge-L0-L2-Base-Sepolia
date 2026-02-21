@@ -7,7 +7,7 @@ import {L1Bridge} from "../../src/L1Bridge.sol";
 contract RateLimitUnitTest is L1BridgeTest {
     // Новая константа для тестов
     uint256 public constant TEST_TX_LIMIT = 5 ether; // maxBridgeLimit
-    
+
     /// @notice Test global rate limit reached
     function test_RateLimit_Revert_GlobalLimit() public {
         uint256 amount = TEST_TX_LIMIT; // 5 ETH, не 10 ETH
@@ -83,10 +83,10 @@ contract RateLimitUnitTest is L1BridgeTest {
     /// @notice Test edge case - bridging exactly at user limit
     function test_RateLimit_ExactUserLimit() public {
         vm.startPrank(alice);
-        
+
         bridge.bridge{value: TEST_TX_LIMIT}(address(0)); // 5 ETH
         bridge.bridge{value: TEST_TX_LIMIT}(address(0)); // еще 5 ETH, всего 10
-        
+
         assertEq(bridge.usersDailyRateLimits(alice), 10 ether);
         vm.stopPrank();
     }

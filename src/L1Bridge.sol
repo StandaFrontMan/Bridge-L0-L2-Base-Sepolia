@@ -6,8 +6,8 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
 
 contract L1Bridge is Ownable, ReentrancyGuard {
     uint256 public constant DAILY_RATE_LIMIT = 100 ether;
-    uint public minBridgeAmount = 0.001 ether;
-    uint public maxBridgeLimit = 5 ether;
+    uint256 public minBridgeAmount = 0.001 ether;
+    uint256 public maxBridgeLimit = 5 ether;
     uint256 public totalBridgedToday;
     uint256 public lastResetDay;
     uint256 public nonce;
@@ -22,7 +22,6 @@ contract L1Bridge is Ownable, ReentrancyGuard {
     error MinBridgeTransactionLimitReached();
     error MaxValuereached();
     error MinValuereached();
-
 
     event Depositing(
         address indexed depositor, address indexed recipient, uint256 indexed nonce, uint256 amount, uint256 timestamp
@@ -43,7 +42,13 @@ contract L1Bridge is Ownable, ReentrancyGuard {
 
     constructor() Ownable(msg.sender) {}
 
-    function bridge(address recipient) public payable nonReentrant bridgeTxLimit(msg.value) rateLimit(msg.sender, msg.value) {
+    function bridge(address recipient)
+        public
+        payable
+        nonReentrant
+        bridgeTxLimit(msg.value)
+        rateLimit(msg.sender, msg.value)
+    {
         require(msg.value > 0, ZeroAmount());
 
         uint256 currentNonce = nonce++;

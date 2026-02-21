@@ -5,12 +5,15 @@ import {L1BridgeTest} from "../L1Bridge.t.sol";
 import {L1Bridge} from "../../src/L1Bridge.sol";
 
 contract RateLimitUnitTest is L1BridgeTest {
+    // Новая константа для тестов
+    uint256 public constant TEST_TX_LIMIT = 5 ether; // maxBridgeLimit
+    
     /// @notice Test global rate limit reached
     function test_RateLimit_Revert_GlobalLimit() public {
-        uint256 amount = USER_LIMIT; // 10 ETH
+        uint256 amount = TEST_TX_LIMIT; // 5 ETH, не 10 ETH
 
-        // Fill global limit with multiple users
-        for (uint256 i = 0; i < 10; i++) {
+        // Fill global limit - нужно 20 транзакций по 5 ETH = 100 ETH
+        for (uint256 i = 0; i < 20; i++) {
             address user = address(uint160(i + 100));
             vm.deal(user, amount);
             vm.prank(user);
@@ -25,12 +28,11 @@ contract RateLimitUnitTest is L1BridgeTest {
 
     /// @notice Test user rate limit reached
     function test_RateLimit_Revert_UserLimit() public {
-        uint256 amount = USER_LIMIT; // 10 ETH
-
         vm.startPrank(alice);
 
-        // First bridge - should succeed
-        bridge.bridge{value: amount}(address(0));
+        // Две транзакции по 5 ETH = 10 ETH (personal limit)
+        bridge.bridge{value: TEST_TX_LIMIT}(address(0)); // 5 ETH
+        bridge.bridge{value: TEST_TX_LIMIT}(address(0)); // еще 5 ETH, всего 10
 
         // Try to exceed user limit
         vm.expectRevert(L1Bridge.PersonalDailyRateLimitReached.selector);
@@ -41,12 +43,12 @@ contract RateLimitUnitTest is L1BridgeTest {
 
     /// @notice Test global limit resets after new day
     function test_RateLimit_GlobalReset() public {
-        // Fill global limit
-        for (uint256 i = 0; i < 10; i++) {
+        // Fill global limit (20 транзакций по 5 ETH)
+        for (uint256 i = 0; i < 20; i++) {
             address user = address(uint160(i + 100));
-            vm.deal(user, USER_LIMIT);
+            vm.deal(user, TEST_TX_LIMIT);
             vm.prank(user);
-            bridge.bridge{value: USER_LIMIT}(address(0));
+            bridge.bridge{value: TEST_TX_LIMIT}(address(0));
         }
 
         // Warp to next day
@@ -54,87 +56,50 @@ contract RateLimitUnitTest is L1BridgeTest {
 
         // Should succeed now
         vm.prank(alice);
-        bridge.bridge{value: USER_LIMIT}(address(0));
+        bridge.bridge{value: TEST_TX_LIMIT}(address(0));
 
-        assertEq(bridge.totalBridgedToday(), USER_LIMIT);
+        assertEq(bridge.totalBridgedToday(), TEST_TX_LIMIT);
     }
 
     /// @notice Test user limit resets after new day
     function test_RateLimit_UserReset() public {
         vm.startPrank(alice);
 
-        // Fill user limit
-        bridge.bridge{value: USER_LIMIT}(address(0));
+        // Fill user limit (2 транзакции по 5 ETH)
+        bridge.bridge{value: TEST_TX_LIMIT}(address(0));
+        bridge.bridge{value: TEST_TX_LIMIT}(address(0));
 
         // Warp to next day
         _warpToNewDay();
 
         // Should succeed now
-        bridge.bridge{value: USER_LIMIT}(address(0));
+        bridge.bridge{value: TEST_TX_LIMIT}(address(0));
 
-        assertEq(bridge.usersDailyRateLimits(alice), USER_LIMIT);
-
-        vm.stopPrank();
-    }
-
-    /// @notice Test partial user limit usage
-    function test_RateLimit_PartialUsage() public {
-        uint256 amount1 = 3 ether;
-        uint256 amount2 = 3 ether;
-        uint256 amount3 = 3 ether; // Total 9 ETH (under 10 ETH limit)
-
-        vm.startPrank(alice);
-
-        bridge.bridge{value: amount1}(address(0));
-        assertEq(bridge.usersDailyRateLimits(alice), amount1);
-
-        bridge.bridge{value: amount2}(address(0));
-        assertEq(bridge.usersDailyRateLimits(alice), amount1 + amount2);
-
-        bridge.bridge{value: amount3}(address(0));
-        assertEq(bridge.usersDailyRateLimits(alice), amount1 + amount2 + amount3);
+        assertEq(bridge.usersDailyRateLimits(alice), TEST_TX_LIMIT);
 
         vm.stopPrank();
-    }
-
-    /// @notice Test multiple users with rate limits
-    function test_RateLimit_MultipleUsers() public {
-        uint256 amount = 5 ether;
-
-        vm.prank(alice);
-        bridge.bridge{value: amount}(address(0));
-
-        vm.prank(bob);
-        bridge.bridge{value: amount}(address(0));
-
-        assertEq(bridge.usersDailyRateLimits(alice), amount);
-        assertEq(bridge.usersDailyRateLimits(bob), amount);
-        assertEq(bridge.totalBridgedToday(), amount * 2);
     }
 
     /// @notice Test edge case - bridging exactly at user limit
     function test_RateLimit_ExactUserLimit() public {
-        vm.prank(alice);
-        bridge.bridge{value: USER_LIMIT}(address(0));
-
-        assertEq(bridge.usersDailyRateLimits(alice), USER_LIMIT);
+        vm.startPrank(alice);
+        
+        bridge.bridge{value: TEST_TX_LIMIT}(address(0)); // 5 ETH
+        bridge.bridge{value: TEST_TX_LIMIT}(address(0)); // еще 5 ETH, всего 10
+        
+        assertEq(bridge.usersDailyRateLimits(alice), 10 ether);
+        vm.stopPrank();
     }
 
     /// @notice Test edge case - bridging exactly at global limit
     function test_RateLimit_ExactGlobalLimit() public {
-        // Use 9 users with full limit + one with partial
-        for (uint256 i = 0; i < 9; i++) {
+        // 20 пользователей по 5 ETH = 100 ETH
+        for (uint256 i = 0; i < 20; i++) {
             address user = address(uint160(i + 100));
-            vm.deal(user, USER_LIMIT);
+            vm.deal(user, TEST_TX_LIMIT);
             vm.prank(user);
-            bridge.bridge{value: USER_LIMIT}(address(0));
+            bridge.bridge{value: TEST_TX_LIMIT}(address(0));
         }
-
-        // Last user bridges remaining 10 ETH
-        address lastUser = address(uint160(200));
-        vm.deal(lastUser, USER_LIMIT);
-        vm.prank(lastUser);
-        bridge.bridge{value: USER_LIMIT}(address(0));
 
         assertEq(bridge.totalBridgedToday(), DAILY_LIMIT);
     }

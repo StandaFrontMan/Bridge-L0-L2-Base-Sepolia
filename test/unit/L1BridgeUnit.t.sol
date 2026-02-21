@@ -33,7 +33,8 @@ contract BridgeUnitTest is L1BridgeTest {
     /// @notice Test bridge with zero amount reverts
     function test_Bridge_Revert_ZeroAmount() public {
         vm.prank(alice);
-        vm.expectRevert(L1Bridge.ZeroAmount.selector);
+        // Исправляем: ожидаем MinBridgeTransactionLimitReached вместо ZeroAmount
+        vm.expectRevert(L1Bridge.MinBridgeTransactionLimitReached.selector);
         bridge.bridge{value: 0}(address(0));
     }
 

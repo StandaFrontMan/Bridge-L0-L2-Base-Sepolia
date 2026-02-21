@@ -11,6 +11,7 @@ contract L1Bridge is Ownable, ReentrancyGuard {
     uint256 public totalBridgedToday;
     uint256 public lastResetDay;
     uint256 public nonce;
+    bool public paused;
 
     mapping(address => uint256) public usersDailyRateLimits;
     mapping(address => uint256) public usersLastBridgeDay;
@@ -22,10 +23,13 @@ contract L1Bridge is Ownable, ReentrancyGuard {
     error MinBridgeTransactionLimitReached();
     error MaxValuereached();
     error MinValuereached();
+    error ContractPaused();
 
     event Depositing(
         address indexed depositor, address indexed recipient, uint256 indexed nonce, uint256 amount, uint256 timestamp
     );
+    event Paused();
+    event Unpaused();
 
     /// @notice Enforces global and personal daily bridge limits.
     /// @param _address The address initiating the bridge.
@@ -35,8 +39,17 @@ contract L1Bridge is Ownable, ReentrancyGuard {
         _;
     }
 
+    /// @notice Validates that the bridge amount is within the allowed transaction limits
+    /// @param _amount The amount of ETH being bridged in the current transaction
     modifier bridgeTxLimit(uint256 _amount) {
         _bridgeTxLimit(_amount);
+        _;
+    }
+
+    /// @notice Ensures the contract is not paused before allowing bridge operations
+    /// @custom:throws ContractPaused if the contract is currently in paused state
+    modifier isContractPaused() {
+        _isContractPaused();
         _;
     }
 
@@ -46,6 +59,7 @@ contract L1Bridge is Ownable, ReentrancyGuard {
         public
         payable
         nonReentrant
+        isContractPaused
         bridgeTxLimit(msg.value)
         rateLimit(msg.sender, msg.value)
     {
@@ -106,5 +120,18 @@ contract L1Bridge is Ownable, ReentrancyGuard {
     function setMinBridgeTransactionLimit(uint256 _minLimit) external onlyOwner {
         require(_minLimit <= maxBridgeLimit, MinValuereached());
         minBridgeAmount = _minLimit;
+    }
+
+    function _isContractPaused() internal view {
+        if (paused) revert ContractPaused();
+    }
+
+    function changeContractPause() external onlyOwner {
+        paused = !paused;
+        if (paused) {
+            emit Paused();
+        } else {
+            emit Unpaused();
+        }
     }
 }

@@ -89,7 +89,7 @@ contract L1Bridge is Ownable, ReentrancyGuard {
 
         processedWithdrawals[_nonce] = true;
 
-        (bool success, ) = payable(user).call{value: amount}("");
+        (bool success,) = payable(user).call{value: amount}("");
         require(success, TransferFailed());
 
         emit Withdrawn(user, amount, _nonce, block.timestamp);

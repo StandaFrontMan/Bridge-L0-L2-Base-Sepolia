@@ -12,9 +12,11 @@ contract L1Bridge is Ownable, ReentrancyGuard {
     uint256 public lastResetDay;
     uint256 public nonce;
     bool public paused;
+    address public relayer;
 
     mapping(address => uint256) public usersDailyRateLimits;
     mapping(address => uint256) public usersLastBridgeDay;
+    mapping(uint256 => bool) public processedWithdrawals;
 
     error ZeroAmount();
     error GlobalDailyRateLimitReached();
@@ -24,12 +26,18 @@ contract L1Bridge is Ownable, ReentrancyGuard {
     error MaxValuereached();
     error MinValuereached();
     error ContractPaused();
+    error Unauthorized();
+    error AlreadyProcessedWithdraw();
+    error InsufficientBalanceForWithdraw();
+    error TransferFailed();
 
     event Depositing(
         address indexed depositor, address indexed recipient, uint256 indexed nonce, uint256 amount, uint256 timestamp
     );
     event Paused();
     event Unpaused();
+    event RelayerSet(address indexed relayer);
+    event Withdrawn(address indexed withdrawer, uint256 amount, uint256 indexed nonce, uint256 timestamp);
 
     /// @notice Enforces global and personal daily bridge limits.
     /// @param _address The address initiating the bridge.
@@ -72,6 +80,19 @@ contract L1Bridge is Ownable, ReentrancyGuard {
         address targetRecipientAddr = recipient == address(0) ? msg.sender : recipient;
 
         emit Depositing(msg.sender, targetRecipientAddr, currentNonce, msg.value, block.timestamp);
+    }
+
+    function withdraw(address user, uint256 amount, uint256 _nonce) external nonReentrant isContractPaused {
+        require(msg.sender == relayer, Unauthorized());
+        if (processedWithdrawals[_nonce] == true) revert AlreadyProcessedWithdraw();
+        require(address(this).balance >= amount, InsufficientBalanceForWithdraw());
+
+        processedWithdrawals[_nonce] = true;
+
+        (bool success, ) = payable(user).call{value: amount}("");
+        require(success, TransferFailed());
+
+        emit Withdrawn(user, amount, _nonce, block.timestamp);
     }
 
     receive() external payable {
@@ -133,5 +154,10 @@ contract L1Bridge is Ownable, ReentrancyGuard {
         } else {
             emit Unpaused();
         }
+    }
+
+    function setRelayer(address _relayer) external onlyOwner {
+        relayer = _relayer;
+        emit RelayerSet(_relayer);
     }
 }

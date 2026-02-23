@@ -39,9 +39,9 @@ contract L2Bridge is Ownable, ReentrancyGuard {
     constructor () Ownable(msg.sender) {}
 
     function mint(address user, uint256 amount, uint256 _nonce) external nonReentrant isContractPaused {
+        if (amount == 0) revert ZeroAmount();
         if (msg.sender != relayer) revert Unauthorized();
         if (processedMints[_nonce] == true) revert AlreadyProcessedMint();
-        if (amount == 0) revert ZeroAmount();
 
         processedMints[_nonce] = true;
         balances[user] += amount;

@@ -6,7 +6,7 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
 
 contract L2Bridge is Ownable, ReentrancyGuard {
     address public relayer;
-    bool public paused; 
+    bool public paused;
     uint256 public nonce;
 
     mapping(uint256 => bool) public processedMints;
@@ -22,12 +22,7 @@ contract L2Bridge is Ownable, ReentrancyGuard {
     event Paused();
     event Unpaused();
     event Minted(address indexed minter, uint256 amount, uint256 indexed nonce, uint256 timestamp);
-    event Burned(
-        address indexed user,
-        uint256 amount,
-        uint256 indexed nonce,
-        uint256 timestamp
-    );
+    event Burned(address indexed user, uint256 amount, uint256 indexed nonce, uint256 timestamp);
 
     /// @notice Ensures the contract is not paused before allowing bridge operations
     /// @custom:throws ContractPaused if the contract is currently in paused state
@@ -36,7 +31,7 @@ contract L2Bridge is Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor () Ownable(msg.sender) {}
+    constructor() Ownable(msg.sender) {}
 
     function mint(address user, uint256 amount, uint256 _nonce) external nonReentrant isContractPaused {
         if (amount == 0) revert ZeroAmount();
@@ -77,7 +72,7 @@ contract L2Bridge is Ownable, ReentrancyGuard {
         emit RelayerSet(_relayer);
     }
 
-    function balanceOf(address user) external view returns(uint256) {
+    function balanceOf(address user) external view returns (uint256) {
         return balances[user];
     }
 }
